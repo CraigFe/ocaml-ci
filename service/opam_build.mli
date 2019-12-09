@@ -2,6 +2,11 @@
 val dockerfile :
   base:string ->
   info:Analyse.Analysis.t ->
-  repo:Current_github.Repo_id.t ->
   variant:string ->
+  Dockerfile.t
+
+val dockerfile' :
+  base:string ->
+  info:Analyse.Analysis.t ->
+  repo:Current_github.Repo_id.t ->
   Dockerfile.t

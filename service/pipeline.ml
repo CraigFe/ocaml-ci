@@ -67,11 +67,16 @@ let build_with_docker ~repo ~analysis src =
   let build (module Docker : Conf.BUILDER) variant =
     let dockerfile =
       let+ base = Docker.pull ~schedule:weekly ("ocurrent/opam:" ^ variant)
+      and+ info = info in
+      Opam_build.dockerfile ~base:(Docker.Image.hash base) ~info ~variant
+    in
+    let dockerfile' =
+      let+ base = Docker.build ~label:"(solve deps)" ~timeout ~pool:Docker.pool ~pull:false ~dockerfile (`Git src)
       and+ repo = repo
       and+ info = info in
-      Opam_build.dockerfile ~base:(Docker.Image.hash base) ~info ~repo ~variant
+      Opam_build.dockerfile' ~base:(Docker.Image.hash base) ~info ~repo
     in
-    let build = Docker.build ~timeout ~pool:Docker.pool ~pull:false ~dockerfile (`Git src) in
+    let build = Docker.build ~label:"(test)" ~timeout ~pool:Docker.pool ~pull:false ~dockerfile:dockerfile' (`Git src) in
     let result = Current.map (fun _ -> `Built) build in
     result, job_id build
   in

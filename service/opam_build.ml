@@ -61,13 +61,9 @@ type key =  {
   variant : string;
 }
 
-let dockerfile { base; info; repo; variant} =
+let dockerfile { base; info; repo; variant } =
   let opam_files = Analyse.Analysis.opam_files info in
   let groups = group_opam_files opam_files in
-  let caches =
-    if Analyse.Analysis.is_duniverse info then Printf.sprintf "%s %s" download_cache (build_cache repo)
-    else download_cache
-  in
   let pkgs = get_opam_packages groups in
   let open Dockerfile in
   let distro_extras =
@@ -83,7 +79,19 @@ let dockerfile { base; info; repo; variant} =
   workdir "/src" @@
   run "sudo chown opam /src" @@
   pin_opam_files groups @@
-  run "(opam install %s --dry-run --deps-only -ty; echo $? > /tmp/exit-status) | tee /tmp/opam-plan; exit $(cat /tmp/exit-status)" (pkgs |> String.concat " ") @@
+  run "(opam install %s --dry-run --deps-only -ty; echo $? > /tmp/exit-status) | tee /tmp/opam-plan; exit $(cat /tmp/exit-status)" (pkgs |> String.concat " ")
+
+let dockerfile' ~base ~info ~repo =
+  let caches =
+    if Analyse.Analysis.is_duniverse info then Printf.sprintf "%s %s" download_cache (build_cache repo)
+    else download_cache
+  in
+  let open Dockerfile in
+  let opam_files = Analyse.Analysis.opam_files info in
+  let groups = group_opam_files opam_files in
+  let pkgs = get_opam_packages groups in
+  comment "syntax = docker/dockerfile:experimental@sha256:ee85655c57140bd20a5ebc3bb802e7410ee9ac47ca92b193ed0ab17485024fe5" @@
+  from base @@
   run "%s awk < /tmp/opam-plan '/-> installed/{print $3}' | xargs opam depext -iy" download_cache @@
   crunch_list (List.map (fun pkg ->
       run {|test "$(opam show -f depexts: %s)" = "$(printf "\n")" || opam depext -ty %s|} pkg pkg) pkgs
